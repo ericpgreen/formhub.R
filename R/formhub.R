@@ -162,30 +162,26 @@ replaceAllNamesWithLabels <- function(formhubDataObj, language=NULL) {
 #' good_eats # is a data frame of all the data
 #' good_eats@form # is the form for that data, encoded as a dataframe
 #' privateData <- formhubDownload("Private_Data_For_Testing", uname="formhub_r", pass="t3st~p4ss")
-formhubDownload = function(formName, uname, pass=NA, ...) {
-  fUrl <- function(formName, uname, form=F) {
-    str_c('http://formhub.org/', uname, '/forms/', formName,
-          ifelse(form,'/form.json', '/data.csv'))
+formhubDownload = function(formName, uname, pass=NA, authfile=NA, 
+                             url='http://formhub.org/', ...) {
+    fUrl <- function(formName, uname, form = F) {
+      str_c(url, uname, '/forms/', formName, 
+            ifelse(form, "/form.json", "/data.csv"))
+    }
+    dataUrl = fUrl(formName, uname)
+    formUrl = fUrl(formName, uname, form = T)
+    upass <- if (!is.na(authfile)) {
+      scan(authfile, what = character())
+    }
+    else if (!is.na(pass)) {
+      str_c(uname, pass, sep = ":")
+    }
+    dataCSVstr <- ifelse(is.na(pass) & is.na(authfile), RCurl::getURI(dataUrl), 
+                         RCurl::getURI(dataUrl, userpwd = upass, httpauth = 1L))
+    formJSON <- ifelse(is.na(pass) & is.na(authfile), RCurl::getURI(formUrl), 
+                       RCurl::getURI(formUrl, userpwd = upass, httpauth = 1L))
+    formhubRead(textConnection(dataCSVstr), formJSON, ...)
   }
-  dataUrl = fUrl(formName, uname)
-  formUrl = fUrl(formName, uname, form=T)
-  
-  #TODO -- pre-flight check? below doesn't work; expects 200+ status
-  #if(!url.exists(datUrl)) { stop("could not find ", dataUrl)}
-  #if(!url.exists(formUrl)) { stop("could not find ", formUrl)}
-  
-  # get the data, depending on public or not
-  dataCSVstr <- ifelse(is.na(pass),
-                 getURI(dataUrl),
-                 getURI(dataUrl, userpwd=str_c(uname,pass,sep=":"), httpauth = 1L))
-  
-  # get the form, depending on public or not
-  # TODO: situations where data is public, form is not
-  formJSON <- ifelse(is.na(pass),
-                 getURI(formUrl),
-                 getURI(formUrl, userpwd=str_c(uname,pass,sep=":"), httpauth = 1L))
-  formhubRead(textConnection(dataCSVstr), formJSON, ...)
-}
 
 #' Reads data from a passed csv filename and json filename into a formhubData object.
 #'
